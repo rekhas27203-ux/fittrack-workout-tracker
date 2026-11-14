@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0B0F14">
+<title>FitTrack — Workout Tracker</title>
+<style>
+  :root{
+    --bg:#0B0F14; --bg2:#0F151D; --card:#141C26; --card2:#1B2532;
+    --line:#243040; --txt:#EAF0F7; --muted:#8FA1B6;
+    --accent:#FF5A1F; --accent2:#22D3A6; --danger:#FF4D5E;
+    --radius:18px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;}
+  body{padding-bottom:env(safe-area-inset-bottom);}
+  h1,h2,h3{margin:0;letter-spacing:-0.02em;}
+  button{font-family:inherit;border:0;cursor:pointer;color:var(--txt);background:none;}
+  input{font-family:inherit;}
+  .screen{display:none;min-height:100vh;flex-direction:column;}
+  .screen.active{display:flex;}
+  .topbar{display:flex;align-items:center;gap:12px;padding:18px 16px 10px;
+    padding-top:calc(18px + env(safe-area-inset-top));}
+  .topbar .title{font-size:22px;font-weight:800;flex:1;}
+  .iconbtn{width:44px;height:44px;border-radius:14px;background:var(--card);
+    display:flex;align-items:center;justify-content:center;font-size:20px;border:1px solid var(--line);}
+  .iconbtn:active{background:var(--card2);}
+  .body{padding:0 16px 120px;flex:1;}
+  .muted{color:var(--muted);font-size:13px;}
+
+  /* search */
+  .searchwrap{position:relative;margin:8px 0 14px;}
+  .searchwrap input{width:100%;padding:16px 16px 16px 46px;border-radius:16px;
+    background:var(--card);border:1px solid var(--line);color:var(--txt);font-size:16px;outline:none;}
+  .searchwrap input:focus{border-color:var(--accent);}
+  .searchwrap .mag{position:absolute;left:16px;top:50%;transform:translateY(-50%);opacity:.6;}
+
+  /* chips */
+  .chips{display:flex;gap:10px;overflow-x:auto;padding:2px 0 14px;scrollbar-width:none;}
+  .chips::-webkit-scrollbar{display:none;}
+  .chip{flex:0 0 auto;padding:11px 16px;border-radius:999px;background:var(--card);
+    border:1px solid var(--line);font-size:14px;font-weight:600;color:var(--muted);}
+  .chip.on{background:var(--accent);border-color:var(--accent);color:#fff;}
+
+  /* exercise cards */
+  .exlist{display:flex;flex-direction:column;gap:12px;}
+  .excard{display:flex;align-items:center;gap:14px;padding:14px;border-radius:var(--radius);
+    background:var(--card);border:1px solid var(--line);text-align:left;width:100%;}
+  .excard:active{background:var(--card2);transform:scale(.995);}
+  .thumb{width:54px;height:54px;border-radius:14px;display:flex;align-items:center;
+    justify-content:center;font-size:26px;background:linear-gradient(135deg,#1E2A38,#2A3A4D);flex:0 0 auto;}
+  .excard .meta{flex:1;min-width:0;}
+  .excard .name{font-size:17px;font-weight:700;margin-bottom:3px;}
+  .excard .cat{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;}
+  .chev{color:var(--muted);font-size:22px;}
+
+  /* config */
+  .hero{display:flex;align-items:center;gap:14px;padding:16px;border-radius:var(--radius);
+    background:linear-gradient(135deg,#1A2431,#131A23);border:1px solid var(--line);margin-bottom:18px;}
+  .hero .thumb{width:64px;height:64px;font-size:32px;}
+  .field{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px;margin-bottom:14px;}
+  .field .label{font-size:14px;font-weight:700;margin-bottom:4px;}
+  .field .hint{font-size:12px;color:var(--muted);margin-bottom:12px;}
+  .stepper{display:flex;align-items:center;gap:14px;}
+  .stepper button{width:56px;height:56px;border-radius:16px;background:var(--card2);
+    border:1px solid var(--line);font-size:26px;font-weight:700;display:flex;
+    align-items:center;justify-content:center;}
+  .stepper button:active{background:var(--accent);border-color:var(--accent);}
+  .stepper input{flex:1;min-width:0;text-align:center;font-size:26px;font-weight:800;
+    background:transparent;border:0;color:var(--txt);outline:none;-moz-appearance:textfield;}
+  .stepper input::-webkit-outer-spin-button,
+  .stepper input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+
+  .btn{width:100%;padding:19px;border-radius:var(--radius);font-size:17px;font-weight:800;
+    display:flex;align-items:center;justify-content:center;gap:10px;}
+  .btn.primary{background:var(--accent);color:#fff;box-shadow:0 10px 26px -12px var(--accent);}
+  .btn.primary:active{transform:translateY(1px);}
+  .btn.ghost{background:var(--card);border:1px solid var(--line);color:var(--txt);}
+  .btn.ghost:active{background:var(--card2);}
+  .btn.tiny{padding:12px;font-size:14px;border-radius:14px;width:auto;}
+  .btn.danger{background:transparent;border:1px solid #43222A;color:var(--danger);}
+
+  .fab{position:fixed;left:16px;right:16px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:40;}
+
+  /* plan rows */
+  .planrow{display:flex;align-items:center;gap:12px;padding:14px;border-radius:var(--radius);
+    background:var(--card);border:1px solid var(--line);margin-bottom:12px;}
+  .planrow .info{flex:1;min-width:0;}
+  .planrow .nm{font-weight:700;font-size:16px;margin-bottom:3px;}
+  .planrow .det{font-size:12px;color:var(--muted);}
+  .startbtn{width:52px;height:52px;border-radius:16px;background:var(--accent);color:#fff;
+    font-size:20px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+  .startbtn:active{transform:scale(.96);}
+  .delbtn{width:40px;height:40px;border-radius:12px;background:var(--card2);
+    display:flex;align-items:center;justify-content:center;color:var(--muted);flex:0 0 auto;}
+
+  .empty{text-align:center;padding:56px 20px;color:var(--muted);}
+  .empty .big{font-size:46px;margin-bottom:12px;opacity:.8;}
+
+  /* player */
+  .playerwrap{padding:0 16px;flex:1;display:flex;flex-direction:column;}
+  .videobox{position:relative;width:100%;aspect-ratio:16/9;border-radius:var(--radius);
+    overflow:hidden;background:#000;border:1px solid var(--line);}
+  .videobox iframe,.videobox #yt{position:absolute;inset:0;width:100%;height:100%;border:0;}
+  .videomsg{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:10px;padding:20px;text-align:center;font-size:13px;color:var(--muted);}
+  .timerarea{display:flex;flex-direction:column;align-items:center;margin-top:22px;}
+  .ringwrap{position:relative;width:min(64vw,260px);aspect-ratio:1;}
+  .ringwrap svg{transform:rotate(-90deg);width:100%;height:100%;}
+  .ringwrap .center{position:absolute;inset:0;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;}
+  .clock{font-size:clamp(38px,13vw,58px);font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-0.03em;}
+  .setlabel{font-size:13px;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:.1em;}
+  .statrow{display:flex;gap:10px;margin-top:18px;width:100%;}
+  .stat{flex:1;background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:12px;text-align:center;}
+  .stat .v{font-size:20px;font-weight:800;}
+  .stat .k{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:2px;}
+  .controls{display:flex;gap:12px;margin-top:20px;padding-bottom:calc(24px + env(safe-area-inset-bottom));}
+  .controls .btn{flex:1;}
+  .doneflag{color:var(--accent2);font-weight:800;font-size:14px;margin-top:10px;text-align:center;}
+
+  /* settings */
+  .keyrow{display:flex;gap:10px;}
+  .keyrow input{flex:1;min-width:0;padding:15px;border-radius:14px;background:var(--bg2);
+    border:1px solid var(--line);color:var(--txt);font-size:15px;outline:none;}
+  .keyrow input:focus{border-color:var(--accent);}
+  .note{font-size:12px;color:var(--muted);line-height:1.6;}
+  code{background:var(--bg2);padding:2px 6px;border-radius:6px;font-size:12px;color:#FFB48A;}
+  .toast{position:fixed;left:50%;bottom:96px;transform:translate(-50%,20px);opacity:0;
+    background:#22303F;border:1px solid var(--line);color:var(--txt);padding:13px 20px;
+    border-radius:14px;font-size:14px;font-weight:600;transition:.25s;z-index:99;pointer-events:none;
+    max-width:90vw;text-align:center;}
+  .toast.show{opacity:1;transform:translate(-50%,0);}
+</style>
+</head>
+<body>
+
+<!-- ============ 1. EXERCISE SELECTION ============ -->
+<section id="s-exercises" class="screen active">
+  <div class="topbar">
+    <div class="title">Find an exercise</div>
+    <button class="iconbtn" onclick="go('plan')" aria-label="My workout plan">📋</button>
+    <button class="iconbtn" onclick="go('settings')" aria-label="Settings">⚙️</button>
+  </div>
+  <div class="body">
+    <div class="searchwrap">
+      <span class="mag">🔍</span>
+      <input id="search" type="search" placeholder="Search exercises…" oninput="renderExercises()">
+    </div>
+    <div class="chips" id="chips"></div>
+    <div class="exlist" id="exlist"></div>
+  </div>
+</section>
+
+<!-- ============ 2. CONFIGURATION ============ -->
+<section id="s-config" class="screen">
+  <div class="topbar">
+    <button class="iconbtn" onclick="go('exercises')" aria-label="Back">←</button>
+    <div class="title" style="font-size:18px">Configure</div>
+  </div>
+  <div class="body">
+    <div class="hero">
+      <div class="thumb" id="cfg-emoji">💪</div>
+      <div>
+        <div style="font-size:20px;font-weight:800" id="cfg-name">Exercise</div>
+        <div class="muted" id="cfg-cat">Category</div>
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="label">Sets</div>
+      <div class="hint">How many rounds of this exercise?</div>
+      <div class="stepper">
+        <button onclick="step('sets',-1)">−</button>
+        <input id="in-sets" type="number" min="1" max="20" value="3" onchange="clampField('sets')">
+        <button onclick="step('sets',1)">+</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="label">Reps</div>
+      <div class="hint">Repetitions per set (0 for a timed hold).</div>
+      <div class="stepper">
+        <button onclick="step('reps',-1)">−</button>
+        <input id="in-reps" type="number" min="0" max="100" value="12" onchange="clampField('reps')">
+        <button onclick="step('reps',1)">+</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="label">Duration per set (seconds)</div>
+      <div class="hint">The countdown timer. Video plays for exactly this long.</div>
+      <div class="stepper">
+        <button onclick="step('dur',-5)">−</button>
+        <input id="in-dur" type="number" min="5" max="1800" step="5" value="45" onchange="clampField('dur')">
+        <button onclick="step('dur',5)">+</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="label">Rest between sets (seconds)</div>
+      <div class="hint">Optional rest countdown after each set.</div>
+      <div class="stepper">
+        <button onclick="step('rest',-5)">−</button>
+        <input id="in-rest" type="number" min="0" max="600" step="5" value="30" onchange="clampField('rest')">
+        <button onclick="step('rest',5)">+</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="label">Tutorial video</div>
+      <div class="hint">Auto-loaded from YouTube (Data API v3, embeddable + Creative Commons). You can also pin a specific video ID.</div>
+      <div class="keyrow">
+        <input id="in-video" type="text" placeholder="YouTube video ID or URL (optional)">
+      </div>
+    </div>
+
+    <button class="btn primary" onclick="saveWorkout()" style="margin-top:6px">💾 Save to My Workout Plan</button>
+  </div>
+</section>
+
+<!-- ============ 3. MY WORKOUT PLAN ============ -->
+<section id="s-plan" class="screen">
+  <div class="topbar">
+    <button class="iconbtn" onclick="go('exercises')" aria-label="Back">←</button>
+    <div class="title" style="font-size:20px">My workout plan</div>
+    <button class="iconbtn" onclick="go('settings')" aria-label="Settings">⚙️</button>
+  </div>
+  <div class="body" id="planbody"></div>
+</section>
+
+<!-- ============ 4. ACTIVE WORKOUT PLAYER ============ -->
+<section id="s-player" class="screen">
+  <div class="topbar">
+    <button class="iconbtn" onclick="leavePlayer()" aria-label="Back">←</button>
+    <div class="title" id="pl-name" style="font-size:18px">Exercise</div>
+  </div>
+  <div class="playerwrap">
+    <div class="videobox">
+      <div id="yt"></div>
+      <div class="videomsg" id="videomsg">Loading tutorial…</div>
+    </div>
+
+    <div class="timerarea">
+      <div class="ringwrap">
+        <svg viewBox="0 0 200 200">
+          <circle cx="100" cy="100" r="88" fill="none" stroke="#1B2532" stroke-width="14"/>
+          <circle id="ring" cx="100" cy="100" r="88" fill="none" stroke="#FF5A1F" stroke-width="14"
+            stroke-linecap="round" stroke-dasharray="552.9" stroke-dashoffset="0"/>
+        </svg>
+        <div class="center">
+          <div class="clock" id="clock">00:45</div>
+          <div class="setlabel" id="setlabel">Set 1 of 3</div>
+        </div>
+      </div>
+      <div class="doneflag" id="doneflag"></div>
+      <div class="statrow">
+        <div class="stat"><div class="v" id="st-sets">3</div><div class="k">Sets</div></div>
+        <div class="stat"><div class="v" id="st-reps">12</div><div class="k">Reps</div></div>
+        <div class="stat"><div class="v" id="st-dur">45s</div><div class="k">Duration</div></div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="btn primary" id="btn-play" onclick="togglePlay()">▶ Start</button>
+      <button class="btn ghost" style="flex:0 0 84px" onclick="resetPlayer()">↺</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 5. SETTINGS ============ -->
+<section id="s-settings" class="screen">
+  <div class="topbar">
+    <button class="iconbtn" onclick="go('exercises')" aria-label="Back">←</button>
+    <div class="title" style="font-size:20px">Settings</div>
+  </div>
+  <div class="body">
+    <div class="field">
+      <div class="label">YouTube Data API v3 key</div>
+      <div class="hint">Needed to auto-fetch tutorial videos. Stored only on this device.</div>
+      <div class="keyrow">
+        <input id="in-key" type="password" placeholder="AIza…" autocomplete="off">
+        <button class="btn ghost tiny" onclick="saveKey()">Save</button>
+      </div>
+      <div class="note" style="margin-top:14px">
+        Get a key from Google Cloud Console → enable <b>YouTube Data API v3</b> → create an API key.
+        In the source code the key can also be baked in as a default: edit
+        <code>DEFAULT_API_KEY</code> at the top of the script in
+        <code>app/src/main/assets/index.html</code> (or <code>build.gradle</code> → <code>buildConfigField</code>).
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="label">About</div>
+      <div class="note">
+        FitTrack keeps every workout on this device (localStorage). Video search uses the
+        YouTube Data API with <code>videoEmbeddable=true</code> and
+        <code>videoLicense=creativeCommon</code>; playback is controlled by the YouTube
+        IFrame Player API so the video pauses the moment the timer hits 00:00.
+      </div>
+    </div>
+
+    <button class="btn danger" onclick="clearAll()">Clear all saved workouts</button>
+  </div>
+</section>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ------------------------------------------------------------------
+   FitTrack — Fitness & Workout Tracker
+   Single-file UI. Runs inside the Android WebView (or any browser).
+   ------------------------------------------------------------------ */
+
+/* Put your YouTube Data API v3 key here to ship it with the app.
+   Leave empty to let the user paste it in Settings. */
+const DEFAULT_API_KEY = "";
+
+const LS = {
+  plan: "fittrack.plan.v1",
+  key:  "fittrack.apikey.v1",
+  cache:"fittrack.videocache.v1"
+};
+
+const EXERCISES = [
+  {id:"bench-press",  name:"Barbell Bench Press",  cat:"Chest",     emoji:"🏋️", tip:"Elbows ~45°, bar to mid-chest."},
+  {id:"pushup",       name:"Push-Up",              cat:"Chest",     emoji:"🤸", tip:"Body in one straight line."},
+  {id:"incline-db",   name:"Incline Dumbbell Press",cat:"Chest",    emoji:"🏋️", tip:"Press up and slightly inward."},
+  {id:"cable-fly",    name:"Cable Chest Fly",      cat:"Chest",     emoji:"🔗", tip:"Soft elbows, squeeze at centre."},
+  {id:"pullup",       name:"Pull-Up",              cat:"Back",      emoji:"🧗", tip:"Pull with elbows, not hands."},
+  {id:"lat-pulldown", name:"Lat Pulldown",         cat:"Back",      emoji:"🪝", tip:"Chest tall, bar to collarbone."},
+  {id:"barbell-row",  name:"Barbell Row",          cat:"Back",      emoji:"🏋️", tip:"Hinge 45°, pull to belly."},
+  {id:"seated-row",   name:"Seated Cable Row",     cat:"Back",      emoji:"🪝", tip:"Do not shrug; squeeze blades."},
+  {id:"squat",        name:"Barbell Back Squat",   cat:"Legs",      emoji:"🦵", tip:"Knees track over toes."},
+  {id:"lunge",        name:"Walking Lunge",        cat:"Legs",      emoji:"🚶", tip:"Back knee nearly touches floor."},
+  {id:"leg-press",    name:"Leg Press",            cat:"Legs",      emoji:"🦿", tip:"Never lock the knees hard."},
+  {id:"romanian-dl",  name:"Romanian Deadlift",    cat:"Legs",      emoji:"🏋️", tip:"Hips back, spine neutral."},
+  {id:"calf-raise",   name:"Standing Calf Raise",  cat:"Legs",      emoji:"🦶", tip:"Pause at the top, slow down."},
+  {id:"bicep-curl",   name:"Dumbbell Bicep Curl",  cat:"Arms",      emoji:"💪", tip:"Elbows pinned to ribs."},
+  {id:"hammer-curl",  name:"Hammer Curl",          cat:"Arms",      emoji:"🔨", tip:"Neutral grip, no swinging."},
+  {id:"tricep-dip",   name:"Triceps Dip",          cat:"Arms",      emoji:"🪑", tip:"Elbows back, not flared."},
+  {id:"tricep-push",  name:"Triceps Pushdown",     cat:"Arms",      emoji:"⬇️", tip:"Lock elbows at your sides."},
+  {id:"plank",        name:"Plank",                cat:"Core",      emoji:"🧘", tip:"Glutes tight, no sagging hips."},
+  {id:"crunch",       name:"Cable Crunch",         cat:"Core",      emoji:"🌀", tip:"Curl the ribs, not the hips."},
+  {id:"leg-raise",    name:"Hanging Leg Raise",    cat:"Core",      emoji:"🪜", tip:"Slow, controlled, no swing."},
+  {id:"russian-twist",name:"Russian Twist",        cat:"Core",      emoji:"🔄", tip:"Rotate from the ribcage."},
+  {id:"treadmill",    name:"Treadmill Run",        cat:"Cardio",    emoji:"🏃", tip:"Relaxed shoulders, quick cadence."},
+  {id:"jump-rope",    name:"Jump Rope",            cat:"Cardio",    emoji:"🪢", tip:"Small hops, wrists do the work."},
+  {id:"burpee",       name:"Burpee",               cat:"Full Body", emoji:"🔥", tip:"Chest to floor, explode up."},
+  {id:"kettlebell-swing",name:"Kettlebell Swing",  cat:"Full Body", emoji:"🔔", tip:"Hips snap, arms are ropes."},
+  {id:"clean-press",  name:"Clean & Press",        cat:"Full Body", emoji:"⚡", tip:"Bar close to body, punch overhead."}
+];
+
+const CATS = ["All","Chest","Back","Legs","Arms","Core","Cardio","Full Body"];
+
+/* ---------------- state ---------------- */
+let activeCat = "All";
+let cfg = { exId:null, sets:3, reps:12, dur:45, rest:30, videoId:"" };
+let plan = load(LS.plan, []);
+let apiKey = load(LS.key, "") || DEFAULT_API_KEY;
+let videoCache = load(LS.cache, {});
+
+/* player state */
+let P = { item:null, remaining:0, running:false, setNo:1, phase:"work", tick:null, endAt:0 };
+
+function load(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } }
+function save(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+function $(s){ return document.querySelector(s); }
+function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function toast(msg){
+  const t = $("#toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove("show"), 2000);
+}
+
+/* ---------------- navigation ---------------- */
+const SCREENS = ["exercises","config","plan","player","settings"];
+function go(name, push){
+  SCREENS.forEach(s => $("#s-"+s).classList.toggle("active", s === name));
+  window.scrollTo(0,0);
+  if(name === "plan") renderPlan();
+  if(name === "settings") $("#in-key").value = apiKey ? apiKey : "";
+  if(push !== false){
+    try{ history.pushState({screen:name}, "", "#"+name); }catch(e){}
+  }
+}
+window.addEventListener("popstate", e => {
+  const s = (e.state && e.state.screen) || "exercises";
+  if(P.running && s !== "player"){ /* keep timer running in background */ }
+  go(s, false);
+});
+
+/* ---------------- exercise list ---------------- */
+function renderChips(){
+  $("#chips").innerHTML = CATS.map(c =>
+    `<button class="chip ${c===activeCat?'on':''}" onclick="setCat('${c}')">${c}</button>`).join("");
+}
+function setCat(c){ activeCat = c; renderChips(); renderExercises(); }
+
+function renderExercises(){
+  const q = ($("#search").value || "").trim().toLowerCase();
+  const rows = EXERCISES.filter(e =>
+    (activeCat === "All" || e.cat === activeCat) &&
+    (!q || e.name.toLowerCase().includes(q) || e.cat.toLowerCase().includes(q)));
+  $("#exlist").innerHTML = rows.length ? rows.map(e => `
+    <button class="excard" onclick="openConfig('${e.id}')">
+      <div class="thumb">${e.emoji}</div>
+      <div class="meta">
+        <div class="name">${esc(e.name)}</div>
+        <div class="cat">${esc(e.cat)}</div>
+      </div>
+      <div class="chev">›</div>
+    </button>`).join("")
+    : `<div class="empty"><div class="big">🔍</div>No exercise matches “${esc(q)}”.</div>`;
+}
+
+/* ---------------- config ---------------- */
+function openConfig(id){
+  const ex = EXERCISES.find(e => e.id === id); if(!ex) return;
+  cfg = { exId:id, sets:3, reps:12, dur:45, rest:30, videoId:"" };
+  $("#cfg-emoji").textContent = ex.emoji;
+  $("#cfg-name").textContent = ex.name;
+  $("#cfg-cat").textContent = ex.cat + " · " + ex.tip;
+  $("#in-sets").value = 3; $("#in-reps").value = 12;
+  $("#in-dur").value = 45; $("#in-rest").value = 30; $("#in-video").value = "";
+  go("config");
+}
+
+function step(field, delta){
+  const map = {sets:"#in-sets", reps:"#in-reps", dur:"#in-dur", rest:"#in-rest"};
+  const el = $(map[field]);
+  el.value = (parseInt(el.value || "0", 10) || 0) + delta;
+  clampField(field);
+}
+function clampField(field){
+  const map = {sets:["#in-sets",1,20], reps:["#in-reps",0,100], dur:["#in-dur",5,1800], rest:["#in-rest",0,600]};
+  const [sel, lo, hi] = map[field];
+  const el = $(sel);
+  let v = parseInt(el.value || "0", 10); if(isNaN(v)) v = lo;
+  el.value = Math.max(lo, Math.min(hi, v));
+}
+
+function parseVideoId(input){
+  const s = (input || "").trim();
+  if(!s) return "";
+  const m = s.match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([A-Za-z0-9_-]{11})/);
+  if(m) return m[1];
+  return /^[A-Za-z0-9_-]{11}$/.test(s) ? s : "";
+}
+
+function saveWorkout(){
+  const ex = EXERCISES.find(e => e.id === cfg.exId); if(!ex) return;
+  ["sets","reps","dur","rest"].forEach(clampField);
+  const item = {
+    uid: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+    exId: ex.id, name: ex.name, cat: ex.cat, emoji: ex.emoji, tip: ex.tip,
+    sets: +$("#in-sets").value, reps: +$("#in-reps").value,
+    dur: +$("#in-dur").value, rest: +$("#in-rest").value,
+    videoId: parseVideoId($("#in-video").value)
+  };
+  plan.push(item); save(LS.plan, plan);
+  toast("Saved to your workout plan ✅");
+  go("plan");
+}
+
+/* ---------------- plan ---------------- */
+function renderPlan(){
+  const body = $("#planbody");
+  if(!plan.length){
+    body.innerHTML = `<div class="empty"><div class="big">📋</div>
+      No workouts saved yet.<br>Pick an exercise and hit “Save”.</div>
+      <button class="btn primary" onclick="go('exercises')">Browse exercises</button>`;
+    return;
+  }
+  body.innerHTML = plan.map(it => `
+    <div class="planrow">
+      <div class="thumb">${it.emoji}</div>
+      <div class="info">
+        <div class="nm">${esc(it.name)}</div>
+        <div class="det">${it.sets} sets × ${it.reps} reps · ${it.dur}s per set</div>
+      </div>
+      <button class="delbtn" onclick="delItem('${it.uid}')" aria-label="Delete">🗑</button>
+      <button class="startbtn" onclick="openPlayer('${it.uid}')" aria-label="Start">▶</button>
+    </div>`).join("") +
+    `<button class="btn ghost" style="margin-top:6px" onclick="go('exercises')">+ Add another exercise</button>`;
+}
+
+function delItem(uid){
+  plan = plan.filter(i => i.uid !== uid); save(LS.plan, plan); renderPlan();
+  toast("Removed");
+}
+
+function clearAll(){
+  plan = []; save(LS.plan, plan); renderPlan(); toast("All workouts cleared");
+}
+
+/* ---------------- YouTube ---------------- */
+let ytPlayer = null, ytReady = false, pendingVideo = null, ytApiLoaded = false;
+
+function loadYouTubeApi(){
+  if(ytApiLoaded) return; ytApiLoaded = true;
+  const s = document.createElement("script");
+  s.src = "https://www.youtube.com/iframe_api";
+  s.onerror = () => showVideoMsg("Could not reach YouTube. Check your internet connection.");
+  document.head.appendChild(s);
+}
+
+window.onYouTubeIframeAPIReady = function(){
+  ytReady = true;
+  if(pendingVideo){ mountPlayer(pendingVideo); pendingVideo = null; }
+};
+
+function mountPlayer(videoId){
+  showVideoMsg(null);
+  if(!ytReady){ pendingVideo = videoId; loadYouTubeApi(); return; }
+  if(ytPlayer){ try{ ytPlayer.loadVideoById(videoId); ytPlayer.pauseVideo(); }catch(e){} return; }
+  ytPlayer = new YT.Player("yt", {
+    height: "100%", width: "100%",
+    videoId: videoId,
+    playerVars: { rel:0, modestbranding:1, playsinline:1, controls:1, fs:1, origin: location.origin },
+    events: {
+      onReady: () => { try{ ytPlayer.pauseVideo(); }catch(e){} },
+      onStateChange: onYtState,
+      onError: () => showVideoMsg("This video cannot be embedded. Try another exercise or pin a different video ID.")
+    }
+  });
+}
+
+function onYtState(ev){
+  /* 0 = ended → loop while the timer is still counting down */
+  if(ev.data === 0 && P.running && P.phase === "work"){
+    try{ ytPlayer.seekTo(0); ytPlayer.playVideo(); }catch(e){}
+  }
+}
+
+function showVideoMsg(msg){
+  const el = $("#videomsg");
+  if(!msg){ el.style.display = "none"; el.innerHTML = ""; return; }
+  el.style.display = "flex";
+  el.innerHTML = `<div style="font-size:26px">🎬</div><div>${esc(msg)}</div>`;
+}
+
+function openYouTubeSearch(name){
+  const url = "https://www.youtube.com/results?search_query=" + encodeURIComponent(name + " proper form tutorial");
+  if(window.AndroidBridge && AndroidBridge.openUrl) AndroidBridge.openUrl(url);
+  else window.open(url, "_blank");
+}
+
+/* Resolve a tutorial video for the exercise: pinned > cache > API search. */
+async function resolveVideo(item){
+  if(item.videoId) return item.videoId;
+  if(videoCache[item.exId]) return videoCache[item.exId];
+  if(!apiKey){
+    showVideoMsg("Add your YouTube Data API key in Settings to auto-load tutorials.");
+    return null;
+  }
+  const params = new URLSearchParams({
+    part:"snippet", type:"video", maxResults:"1",
+    q: item.name + " exercise proper form tutorial",
+    videoEmbeddable:"true", videoLicense:"creativeCommon",
+    safeSearch:"strict", key: apiKey
+  });
+  try{
+    const r = await fetch("https://www.googleapis.com/youtube/v3/search?" + params.toString());
+    const j = await r.json();
+    if(j.error){
+      showVideoMsg("YouTube API error: " + (j.error.message || "request rejected") + ". Check the key and that YouTube Data API v3 is enabled.");
+      return null;
+    }
+    const v = j.items && j.items[0];
+    if(!v){ showVideoMsg("No embeddable Creative-Commons video found. Pin a video ID in Configure."); return null; }
+    const vid = v.id.videoId;
+    videoCache[item.exId] = vid; save(LS.cache, videoCache);
+    return vid;
+  }catch(e){
+    showVideoMsg("Could not reach YouTube. Check your internet connection.");
+    return null;
+  }
+}
+
+/* ---------------- player ---------------- */
+async function openPlayer(uid){
+  const item = plan.find(i => i.uid === uid); if(!item) return;
+  P = { item, remaining:item.dur, running:false, setNo:1, phase:"work", tick:null, endAt:0 };
+  $("#pl-name").textContent = item.name;
+  $("#st-sets").textContent = item.sets;
+  $("#st-reps").textContent = item.reps;
+  $("#st-dur").textContent = item.dur + "s";
+  $("#doneflag").textContent = "";
+  $("#setlabel").textContent = "Set 1 of " + item.sets;
+  $("#btn-play").textContent = "▶ Start";
+  go("player");
+  paintTimer(item.dur, item.dur);
+  showVideoMsg("Looking for a tutorial video…");
+  loadYouTubeApi();
+  const vid = await resolveVideo(item);
+  if(vid) mountPlayer(vid);
+  else if(!apiKey){
+    showVideoMsg("Add your YouTube Data API key in Settings to auto-load tutorials.");
+    const el = $("#videomsg");
+    el.innerHTML += '<button class="btn ghost tiny" style="margin-top:4px" ' +
+      'onclick="openYouTubeSearch(\'' + item.name.replace(/'/g, "") + '\')">Search on YouTube ↗</button>';
+  }
+}
+
+function paintTimer(remaining, total){
+  const m = Math.floor(Math.max(0,remaining) / 60);
+  const s = Math.max(0,remaining) % 60;
+  $("#clock").textContent = String(m).padStart(2,"0") + ":" + String(s).padStart(2,"0");
+  const C = 2 * Math.PI * 88;
+  const frac = total > 0 ? Math.max(0, Math.min(1, remaining / total)) : 0;
+  $("#ring").setAttribute("stroke-dashoffset", String(C * (1 - frac)));
+  $("#ring").setAttribute("stroke", P.phase === "rest" ? "#22D3A6" : "#FF5A1F");
+}
+
+function togglePlay(){
+  if(!P.item) return;
+  if(P.running) pauseAll(); else startPhase();
+}
+
+function startPhase(){
+  P.running = true;
+  $("#btn-play").textContent = "⏸ Pause";
+  $("#doneflag").textContent = "";
+  if(P.phase === "work"){
+    try{ if(ytPlayer && ytPlayer.playVideo) ytPlayer.playVideo(); }catch(e){}
+  }
+  P.endAt = Date.now() + P.remaining * 1000;
+  clearInterval(P.tick);
+  P.tick = setInterval(onTick, 200);
+}
+
+function onTick(){
+  const left = Math.max(0, Math.round((P.endAt - Date.now()) / 1000));
+  if(left !== P.remaining){ P.remaining = left; paintTimer(P.remaining, currentTotal()); }
+  if(left <= 0) finishPhase();
+}
+
+function currentTotal(){
+  if(P.phase === "rest") return Math.max(1, P.item.rest || 30);
+  return Math.max(1, P.item.dur);
+}
+
+function finishPhase(){
+  clearInterval(P.tick); P.tick = null; P.running = false;
+  /* stop the video the instant the countdown hits zero */
+  try{ if(ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo(); }catch(e){}
+
+  if(P.phase === "work"){
+    if(P.setNo >= P.item.sets){
+      $("#doneflag").textContent = "🎉 Workout complete — " + P.item.sets + " sets done";
+      $("#btn-play").textContent = "▶ Start again";
+      $("#setlabel").textContent = "All sets finished";
+      P.remaining = 0; paintTimer(0, currentTotal());
+      P.setNo = P.item.sets + 1;
+      return;
+    }
+    if(P.item.rest > 0){
+      P.phase = "rest"; P.remaining = P.item.rest;
+      $("#setlabel").textContent = "Rest · next set " + (P.setNo + 1) + " of " + P.item.sets;
+      $("#btn-play").textContent = "▶ Start rest";
+      paintTimer(P.remaining, currentTotal());
+      $("#doneflag").textContent = "Set " + P.setNo + " done ✅";
+      return;
+    }
+    nextSet();
+    return;
+  }
+  /* rest finished */
+  nextSet();
+}
+
+function nextSet(){
+  P.phase = "work"; P.setNo += 1;
+  P.remaining = P.item.dur;
+  $("#setlabel").textContent = "Set " + P.setNo + " of " + P.item.sets;
+  $("#btn-play").textContent = "▶ Start";
+  $("#doneflag").textContent = "Rest over — go!";
+  paintTimer(P.remaining, currentTotal());
+}
+
+function pauseAll(){
+  P.running = false;
+  clearInterval(P.tick); P.tick = null;
+  try{ if(ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo(); }catch(e){}
+  $("#btn-play").textContent = "▶ Resume";
+}
+
+function resetPlayer(){
+  if(!P.item) return;
+  pauseAll();
+  P.phase = "work"; P.setNo = 1; P.remaining = P.item.dur;
+  $("#setlabel").textContent = "Set 1 of " + P.item.sets;
+  $("#doneflag").textContent = "";
+  $("#btn-play").textContent = "▶ Start";
+  paintTimer(P.remaining, currentTotal());
+  try{ if(ytPlayer && ytPlayer.seekTo) ytPlayer.seekTo(0); }catch(e){}
+}
+
+function leavePlayer(){
+  pauseAll();
+  if(P.tick) clearInterval(P.tick);
+  go("plan");
+}
+
+/* ---------------- settings ---------------- */
+function saveKey(){
+  apiKey = ($("#in-key").value || "").trim();
+  save(LS.key, apiKey);
+  toast(apiKey ? "API key saved" : "API key cleared");
+}
+
+/* ---------------- boot ---------------- */
+renderChips();
+renderExercises();
+$("#in-key").value = apiKey ? apiKey : "";
+try{ history.replaceState({screen:"exercises"}, "", "#exercises"); }catch(e){}
+</script>
+</body>
+</html>
